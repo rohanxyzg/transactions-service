@@ -1,0 +1,35 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: transactions-postgres
+    environment:
+      POSTGRES_DB: transactions_db
+      POSTGRES_USER: transactions
+      POSTGRES_PASSWORD: transactions
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transactions -d transactions_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: transactions-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/transactions_db
+      DB_USER: transactions
+      DB_PASSWORD: transactions
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
