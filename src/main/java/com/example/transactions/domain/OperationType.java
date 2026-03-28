@@ -18,8 +18,7 @@ public class OperationType {
 
     protected OperationType() {}
 
-    // Package-private constructor for use in tests
-    OperationType(Long id, String description, boolean credit) {
+    public OperationType(Long id, String description, boolean credit) {
         this.id = id;
         this.description = description;
         this.credit = credit;
