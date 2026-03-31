@@ -10,10 +10,12 @@ import com.example.transactions.exception.OperationTypeNotFoundException;
 import com.example.transactions.repository.AccountRepository;
 import com.example.transactions.repository.OperationTypeRepository;
 import com.example.transactions.repository.TransactionRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 
+@Slf4j
 @Service
 public class TransactionService {
 
@@ -32,22 +34,24 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponse createTransaction(CreateTransactionRequest request) {
-        // Acquire a pessimistic write lock on the account row.
-        // This prevents two concurrent transactions on the same account from reading
-        // the same balance and each computing an incorrect new value (lost update).
         Account account = accountRepository.findByIdForUpdate(request.accountId())
-            .orElseThrow(() -> new AccountNotFoundException(request.accountId()));
+            .orElseThrow(() -> {
+                log.warn("Transaction rejected: account id={} not found", request.accountId());
+                return new AccountNotFoundException(request.accountId());
+            });
 
         OperationType operationType = operationTypeRepository.findById(request.operationTypeId())
-            .orElseThrow(() -> new OperationTypeNotFoundException(request.operationTypeId()));
+            .orElseThrow(() -> {
+                log.warn("Transaction rejected: operation type id={} not found", request.operationTypeId());
+                return new OperationTypeNotFoundException(request.operationTypeId());
+            });
 
         BigDecimal signedAmount = applySign(request.amount(), operationType);
-
-        // Update the account balance within the same transaction and lock.
-        // Hibernate dirty-checking will flush the balance update automatically on commit.
         account.applyTransaction(signedAmount);
 
         Transaction saved = transactionRepository.save(new Transaction(account, operationType, signedAmount));
+        log.info("Transaction id={} created for account id={}. New balance={}",
+            saved.getId(), account.getId(), account.getBalance());
         return TransactionResponse.from(saved);
     }
 

@@ -85,4 +85,22 @@ class TransactionControllerTest {
                     new CreateTransactionRequest(1L, 1L, BigDecimal.ZERO))))
             .andExpect(status().isUnprocessableEntity());
     }
+
+    @Test
+    void createTransaction_negativeAmount_returns422() throws Exception {
+        mockMvc.perform(post("/transactions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                    new CreateTransactionRequest(1L, 1L, new BigDecimal("-10.00")))))
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void createTransaction_amountAboveMax_returns422() throws Exception {
+        mockMvc.perform(post("/transactions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                    new CreateTransactionRequest(1L, 1L, new BigDecimal("1000000.00")))))
+            .andExpect(status().isUnprocessableEntity());
+    }
 }

@@ -40,6 +40,7 @@ case "${1:-up}" in
     done
     echo ""
     echo "App did not respond in time. Check logs with: ./run.sh logs"
+    exit 1
     ;;
   down)
     $COMPOSE down

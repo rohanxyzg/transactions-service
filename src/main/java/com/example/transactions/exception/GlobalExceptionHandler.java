@@ -1,6 +1,8 @@
 package com.example.transactions.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,10 +10,12 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -44,6 +48,23 @@ public class GlobalExceptionHandler {
                 "A data integrity constraint was violated", request.getRequestURI()));
     }
 
+    @ExceptionHandler(CannotAcquireLockException.class)
+    public ResponseEntity<ErrorResponse> handleLockTimeout(
+            CannotAcquireLockException ex, HttpServletRequest request) {
+        log.warn("Lock acquisition timed out for request: {}", request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(ErrorResponse.of(HttpStatus.SERVICE_UNAVAILABLE,
+                "Service is busy, please retry", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        String message = String.format("Invalid value '%s' for parameter '%s'", ex.getValue(), ex.getName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, message, request.getRequestURI()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
@@ -59,6 +80,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(
             Exception ex, HttpServletRequest request) {
+        log.error("Unexpected error on {}", request.getRequestURI(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ErrorResponse.of(HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred", request.getRequestURI()));

@@ -19,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -132,15 +133,16 @@ class TransactionServiceTest {
     }
 
     @Test
-    void createTransaction_eventDateIsSetOnCreation() {
+    void createTransaction_eventDateIsRecentlySet() {
         OperationType creditType = new OperationType(4L, "Credit Voucher", true);
         when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ACCOUNT));
         when(operationTypeRepository.findById(4L)).thenReturn(Optional.of(creditType));
         ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
         when(transactionRepository.save(captor.capture())).thenAnswer(i -> i.getArgument(0));
 
+        OffsetDateTime before = OffsetDateTime.now().minusSeconds(1);
         transactionService.createTransaction(new CreateTransactionRequest(1L, 4L, new BigDecimal("10.00")));
 
-        assertThat(captor.getValue().getEventDate()).isNotNull();
+        assertThat(captor.getValue().getEventDate()).isAfter(before);
     }
 }

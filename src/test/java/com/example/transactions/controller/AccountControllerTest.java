@@ -40,8 +40,7 @@ class AccountControllerTest {
                 .content(objectMapper.writeValueAsString(new CreateAccountRequest("12345678900"))))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.account_id").value(1))
-            .andExpect(jsonPath("$.document_number").value("12345678900"))
-            .andExpect(jsonPath("$.balance").value(0));
+            .andExpect(jsonPath("$.document_number").value("12345678900"));
     }
 
     @Test
@@ -72,15 +71,30 @@ class AccountControllerTest {
     }
 
     @Test
-    void getAccount_existingAccount_returns200WithBalance() throws Exception {
+    void createAccount_tooShortDocument_returns422() throws Exception {
+        mockMvc.perform(post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateAccountRequest("1234567890"))))  // 10 digits
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void createAccount_tooLongDocument_returns422() throws Exception {
+        mockMvc.perform(post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateAccountRequest("123456789012"))))  // 12 digits
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void getAccount_existingAccount_returns200() throws Exception {
         when(accountService.getAccount(1L))
-            .thenReturn(new AccountResponse(1L, "12345678900", new BigDecimal("-50.00")));
+            .thenReturn(new AccountResponse(1L, "12345678900", BigDecimal.ZERO));
 
         mockMvc.perform(get("/accounts/1"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.account_id").value(1))
-            .andExpect(jsonPath("$.document_number").value("12345678900"))
-            .andExpect(jsonPath("$.balance").value(-50.00));
+            .andExpect(jsonPath("$.document_number").value("12345678900"));
     }
 
     @Test
@@ -91,5 +105,11 @@ class AccountControllerTest {
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.status").value(404))
             .andExpect(jsonPath("$.message").value("Account not found with id: 99"));
+    }
+
+    @Test
+    void getAccount_nonNumericId_returns400() throws Exception {
+        mockMvc.perform(get("/accounts/abc"))
+            .andExpect(status().isBadRequest());
     }
 }

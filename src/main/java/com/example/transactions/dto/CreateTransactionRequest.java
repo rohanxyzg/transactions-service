@@ -1,6 +1,7 @@
 package com.example.transactions.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,7 @@ public record CreateTransactionRequest(
 
     @NotNull(message = "amount is required")
     @DecimalMin(value = "0.01", message = "amount must be greater than zero")
-    @Digits(integer = 17, fraction = 2, message = "amount must have at most 2 decimal places")
+    @DecimalMax(value = "999999.99", message = "amount must not exceed 999999.99")
+    @Digits(integer = 6, fraction = 2, message = "amount must have at most 2 decimal places")
     BigDecimal amount
 ) {}
