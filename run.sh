@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+COMPOSE="docker-compose"
+
 usage() {
   cat <<EOF
 Usage: ./run.sh [COMMAND]
@@ -21,7 +23,7 @@ EOF
 case "${1:-up}" in
   up)
     echo "Building and starting Transactions Service..."
-    docker compose up --build -d
+    $COMPOSE up --build -d
     echo ""
     echo "Services started. Waiting for the app to be ready..."
     for i in $(seq 1 30); do
@@ -40,17 +42,17 @@ case "${1:-up}" in
     echo "App did not respond in time. Check logs with: ./run.sh logs"
     ;;
   down)
-    docker compose down
+    $COMPOSE down
     ;;
   logs)
-    docker compose logs -f app
+    $COMPOSE logs -f app
     ;;
   test)
     echo "Running unit tests..."
     mvn test
     ;;
   clean)
-    docker compose down -v
+    $COMPOSE down -v
     ;;
   help|--help|-h)
     usage
