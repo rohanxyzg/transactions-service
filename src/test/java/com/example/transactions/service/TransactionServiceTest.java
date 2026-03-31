@@ -42,7 +42,7 @@ class TransactionServiceTest {
     @ValueSource(longs = {1L, 2L, 3L})
     void createTransaction_debitOperations_amountStoredNegative(Long operationTypeId) {
         OperationType debitType = new OperationType(operationTypeId, "Debit", false);
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(ACCOUNT));
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ACCOUNT));
         when(operationTypeRepository.findById(operationTypeId)).thenReturn(Optional.of(debitType));
         ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
         when(transactionRepository.save(captor.capture())).thenAnswer(i -> i.getArgument(0));
@@ -55,7 +55,7 @@ class TransactionServiceTest {
     @Test
     void createTransaction_creditOperation_amountStoredPositive() {
         OperationType creditType = new OperationType(4L, "Credit Voucher", true);
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(ACCOUNT));
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ACCOUNT));
         when(operationTypeRepository.findById(4L)).thenReturn(Optional.of(creditType));
         ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
         when(transactionRepository.save(captor.capture())).thenAnswer(i -> i.getArgument(0));
@@ -66,8 +66,53 @@ class TransactionServiceTest {
     }
 
     @Test
+    void createTransaction_debitOperation_balanceDecreasedOnAccount() {
+        OperationType debitType = new OperationType(1L, "Normal Purchase", false);
+        Account account = new Account("12345678900");
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(account));
+        when(operationTypeRepository.findById(1L)).thenReturn(Optional.of(debitType));
+        when(transactionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        transactionService.createTransaction(new CreateTransactionRequest(1L, 1L, new BigDecimal("50.00")));
+
+        assertThat(account.getBalance()).isEqualByComparingTo(new BigDecimal("-50.00"));
+    }
+
+    @Test
+    void createTransaction_creditOperation_balanceIncreasedOnAccount() {
+        OperationType creditType = new OperationType(4L, "Credit Voucher", true);
+        Account account = new Account("12345678900");
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(account));
+        when(operationTypeRepository.findById(4L)).thenReturn(Optional.of(creditType));
+        when(transactionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        transactionService.createTransaction(new CreateTransactionRequest(1L, 4L, new BigDecimal("100.00")));
+
+        assertThat(account.getBalance()).isEqualByComparingTo(new BigDecimal("100.00"));
+    }
+
+    @Test
+    void createTransaction_multipleTransactions_balanceAccumulates() {
+        Account account = new Account("12345678900");
+        OperationType debit = new OperationType(1L, "Normal Purchase", false);
+        OperationType credit = new OperationType(4L, "Credit Voucher", true);
+
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(account));
+        when(operationTypeRepository.findById(1L)).thenReturn(Optional.of(debit));
+        when(operationTypeRepository.findById(4L)).thenReturn(Optional.of(credit));
+        when(transactionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        transactionService.createTransaction(new CreateTransactionRequest(1L, 1L, new BigDecimal("50.00")));
+        transactionService.createTransaction(new CreateTransactionRequest(1L, 4L, new BigDecimal("200.00")));
+        transactionService.createTransaction(new CreateTransactionRequest(1L, 1L, new BigDecimal("30.00")));
+
+        // -50 + 200 - 30 = 120
+        assertThat(account.getBalance()).isEqualByComparingTo(new BigDecimal("120.00"));
+    }
+
+    @Test
     void createTransaction_accountNotFound_throwsAccountNotFoundException() {
-        when(accountRepository.findById(99L)).thenReturn(Optional.empty());
+        when(accountRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
             transactionService.createTransaction(new CreateTransactionRequest(99L, 1L, BigDecimal.TEN)))
@@ -77,7 +122,7 @@ class TransactionServiceTest {
 
     @Test
     void createTransaction_operationTypeNotFound_throwsOperationTypeNotFoundException() {
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(ACCOUNT));
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ACCOUNT));
         when(operationTypeRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
@@ -89,7 +134,7 @@ class TransactionServiceTest {
     @Test
     void createTransaction_eventDateIsSetOnCreation() {
         OperationType creditType = new OperationType(4L, "Credit Voucher", true);
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(ACCOUNT));
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ACCOUNT));
         when(operationTypeRepository.findById(4L)).thenReturn(Optional.of(creditType));
         ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
         when(transactionRepository.save(captor.capture())).thenAnswer(i -> i.getArgument(0));

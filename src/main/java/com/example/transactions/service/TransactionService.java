@@ -32,14 +32,22 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponse createTransaction(CreateTransactionRequest request) {
-        Account account = accountRepository.findById(request.accountId())
+        // Acquire a pessimistic write lock on the account row.
+        // This prevents two concurrent transactions on the same account from reading
+        // the same balance and each computing an incorrect new value (lost update).
+        Account account = accountRepository.findByIdForUpdate(request.accountId())
             .orElseThrow(() -> new AccountNotFoundException(request.accountId()));
 
         OperationType operationType = operationTypeRepository.findById(request.operationTypeId())
             .orElseThrow(() -> new OperationTypeNotFoundException(request.operationTypeId()));
 
-        BigDecimal amount = applySign(request.amount(), operationType);
-        Transaction saved = transactionRepository.save(new Transaction(account, operationType, amount));
+        BigDecimal signedAmount = applySign(request.amount(), operationType);
+
+        // Update the account balance within the same transaction and lock.
+        // Hibernate dirty-checking will flush the balance update automatically on commit.
+        account.applyTransaction(signedAmount);
+
+        Transaction saved = transactionRepository.save(new Transaction(account, operationType, signedAmount));
         return TransactionResponse.from(saved);
     }
 

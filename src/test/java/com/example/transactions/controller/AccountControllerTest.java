@@ -15,6 +15,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -30,14 +32,16 @@ class AccountControllerTest {
 
     @Test
     void createAccount_validRequest_returns201() throws Exception {
-        when(accountService.createAccount(any())).thenReturn(new AccountResponse(1L, "12345678900"));
+        when(accountService.createAccount(any()))
+            .thenReturn(new AccountResponse(1L, "12345678900", BigDecimal.ZERO));
 
         mockMvc.perform(post("/accounts")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new CreateAccountRequest("12345678900"))))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.account_id").value(1))
-            .andExpect(jsonPath("$.document_number").value("12345678900"));
+            .andExpect(jsonPath("$.document_number").value("12345678900"))
+            .andExpect(jsonPath("$.balance").value(0));
     }
 
     @Test
@@ -68,13 +72,15 @@ class AccountControllerTest {
     }
 
     @Test
-    void getAccount_existingAccount_returns200() throws Exception {
-        when(accountService.getAccount(1L)).thenReturn(new AccountResponse(1L, "12345678900"));
+    void getAccount_existingAccount_returns200WithBalance() throws Exception {
+        when(accountService.getAccount(1L))
+            .thenReturn(new AccountResponse(1L, "12345678900", new BigDecimal("-50.00")));
 
         mockMvc.perform(get("/accounts/1"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.account_id").value(1))
-            .andExpect(jsonPath("$.document_number").value("12345678900"));
+            .andExpect(jsonPath("$.document_number").value("12345678900"))
+            .andExpect(jsonPath("$.balance").value(-50.00));
     }
 
     @Test
