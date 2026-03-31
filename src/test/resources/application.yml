@@ -6,8 +6,7 @@ spring:
     password:
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create-drop   # H2 creates schema from entities; Flyway not involved
     show-sql: false
-  sql:
-    init:
-      mode: never
+  flyway:
+    enabled: false            # Flyway migrations are PostgreSQL-specific

@@ -1,6 +1,7 @@
 package com.example.transactions.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -33,6 +34,14 @@ public class GlobalExceptionHandler {
             DuplicateDocumentException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
             .body(ErrorResponse.of(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ErrorResponse.of(HttpStatus.CONFLICT,
+                "A data integrity constraint was violated", request.getRequestURI()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
