@@ -42,6 +42,7 @@ public class TransactionService {
 
         OperationType operationType = operationTypeRepository.findById(request.operationTypeId())
             .orElseThrow(() -> {
+
                 log.warn("Transaction rejected: operation type id={} not found", request.operationTypeId());
                 return new OperationTypeNotFoundException(request.operationTypeId());
             });
