@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -51,11 +52,36 @@ public class TransactionService {
         account.applyTransaction(signedAmount);
 
         Transaction saved = transactionRepository.save(new Transaction(account, operationType, signedAmount));
+
+        if (operationType.isCredit()) {
+            dischargeDebits(request.accountId(), saved);
+        }
         log.info("Transaction id={} created for account id={}. New balance={}",
             saved.getId(), account.getId(), account.getBalance());
         return TransactionResponse.from(saved);
     }
 
+    private void dischargeDebits(Long accountId, Transaction credit) {
+        BigDecimal creditPool = credit.getBalance();
+        if (creditPool.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
+
+        List<Transaction> pendingDebits = transactionRepository.findPendingDebitsForUpdate(accountId);
+        for (Transaction pendingDebit : pendingDebits) {
+            if (creditPool.compareTo(BigDecimal.ZERO) == 0) {
+                break;
+            }
+            BigDecimal consumed = pendingDebit.applyDischarge(creditPool);
+
+            transactionRepository.save(pendingDebit);
+            creditPool = creditPool.subtract(consumed);
+        }
+
+        BigDecimal totalConsumed = credit.getAmount().subtract(creditPool);
+        credit.reduceBalance(totalConsumed);
+        transactionRepository.save(credit);
+    }
     /**
      * Debit operations (purchase, withdrawal) are stored as negative values.
      * Credit operations are stored as positive values.

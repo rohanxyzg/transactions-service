@@ -27,14 +27,31 @@ public class Transaction {
     @Column(name = "event_date", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private OffsetDateTime eventDate;
 
+    @Column(name = "balance", nullable = false, precision = 19, scale = 2)
+    private BigDecimal balance;
+
     protected Transaction() {}
 
     public Transaction(Account account, OperationType operationType, BigDecimal amount) {
         this.account = account;
         this.operationType = operationType;
         this.amount = amount;
+        this.balance = amount;
         this.eventDate = OffsetDateTime.now();
     }
+
+    public BigDecimal applyDischarge(BigDecimal discharge) {
+        BigDecimal outstanding = this.balance.negate();
+        BigDecimal consumed = discharge.min(outstanding);
+        this.balance = this.balance.add(consumed);
+
+        return consumed;
+    }
+
+    public void reduceBalance(BigDecimal amount) {
+        this.balance = this.balance.subtract(amount);
+    }
+
 
     public Long getId() { return id; }
 
@@ -45,4 +62,7 @@ public class Transaction {
     public BigDecimal getAmount() { return amount; }
 
     public OffsetDateTime getEventDate() { return eventDate; }
+
+    public BigDecimal getBalance() { return balance; }
+
 }

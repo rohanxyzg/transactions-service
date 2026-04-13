@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -144,5 +145,29 @@ class TransactionServiceTest {
         transactionService.createTransaction(new CreateTransactionRequest(1L, 4L, new BigDecimal("10.00")));
 
         assertThat(captor.getValue().getEventDate()).isAfter(before);
+    }
+
+    @Test
+    void discharge_payment60_partiallyCover() {
+
+        OperationType creditType = new OperationType(4L, "Credit Voucher", true);
+
+        OperationType debitType = new OperationType(1L, "Normal Purchase", false);
+        Transaction tx1 = new Transaction(ACCOUNT, debitType, new BigDecimal("-50.00"));
+        Transaction tx2 = new Transaction(ACCOUNT, debitType, new BigDecimal("-23.50"));
+        Transaction tx3 = new Transaction(ACCOUNT, debitType, new BigDecimal("-18.70"));
+
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ACCOUNT));
+        when(operationTypeRepository.findById(4L)).thenReturn(Optional.of(creditType));
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        when(transactionRepository.save(captor.capture())).thenAnswer(i -> i.getArgument(0));
+        when(transactionRepository.findPendingDebitsForUpdate(1L)).thenReturn(List.of(tx1, tx2, tx3));
+        var response = transactionService.createTransaction(new CreateTransactionRequest(1L, 4L, new BigDecimal("60.00")));
+
+
+        assertThat(tx1.getBalance()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(tx2.getBalance()).isEqualByComparingTo(new BigDecimal("-13.5"));
+        assertThat(tx3.getBalance()).isEqualByComparingTo(new BigDecimal("-18.7"));
+        assertThat(response.balance()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 }

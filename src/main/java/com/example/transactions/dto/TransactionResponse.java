@@ -17,6 +17,8 @@ public record TransactionResponse(
 
     BigDecimal amount,
 
+    BigDecimal balance,
+
     @JsonProperty("event_date")
     OffsetDateTime eventDate
 ) {
@@ -26,6 +28,7 @@ public record TransactionResponse(
             t.getAccount().getId(),
             t.getOperationType().getId(),
             t.getAmount(),
+            t.getBalance(),
             t.getEventDate()
         );
     }
